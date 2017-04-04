@@ -26,7 +26,9 @@ def api_call(endpoint, content):
 
 
 def get_spent_and_income_by_month(transactions, ignore_donuts=False, ignore_cc_payments=False):
+	from datetime import datetime
 	spent_and_income_by_month = {}
+	transactions_by_amount = {}
 	for t in transactions:
 		amount = t['amount']
 		amount_type = 'income' if amount > 0 else 'spent'
@@ -38,6 +40,29 @@ def get_spent_and_income_by_month(transactions, ignore_donuts=False, ignore_cc_p
 			else:
 				spent_and_income_by_month[month] = {'spent': 0, 'income': 0}
 				spent_and_income_by_month[month][amount_type] = amount
+
+		if ignore_cc_payments:
+			tx_dt = datetime.strptime(t['transaction-time'],'%Y-%m-%dT%H:%M:%S.%fZ')
+			t['transaction-date'] = tx_dt
+			if amount*-1 in transactions_by_amount:
+				transactions_by_amount[abs(amount)].append(t)
+				# N.B. I'm going to assume there are only 2 transactions with the same amount.
+				# Almost certainly a false assumption, but allows for a simpler first version of this feature.
+				# ... and this needs tests.
+				# Well, many of these functions will need tests. But especially this one.
+			else:
+				transactions_by_amount[abs(amount)] = [t]
+
+	if ignore_cc_payments:
+		for amount, tx_list in transactions_by_amount.iteritems():
+			if len(tx_list) == 2:
+				delta = tx_list[0]['transaction-date'] - tx_list[1]['transaction-date']
+				if abs(delta.days) < 1:
+					for tx in tx_list:
+						amount_type = 'income' if tx['amount'] > 0 else 'spent'
+						month = tx['transaction-time'][:7]
+						spent_and_income_by_month[month][amount_type] -= tx['amount']
+
 	return spent_and_income_by_month
 
 
@@ -83,11 +108,4 @@ if __name__ == "__main__":
 	# output these numbers in the following format: {"2014-10": {"spent": "$200.00", "income": "$500.00"}, [...]
 	pprint(format_financial_stats(spent_and_income_by_month))
 
-	
-
-# [{"amount":-34300,"is-pending":false,"aggregation-time":1412686740000,
-# "account-id":"nonce:comfy-cc/hdhehe",
-# "clear-date":1412790480000,"transaction-id":"1412790480000",
-# "raw-merchant":"7-ELEVEN 23853","categorization":"Unknown",
-# "merchant":"7-Eleven 23853","transaction-time":"2014-10-07T12:59:00.000Z"},
 

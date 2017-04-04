@@ -25,7 +25,7 @@ def api_call(endpoint, content):
                          ).json()
 
 
-def get_spent_and_income_by_month(transactions, ignore_donuts=False):
+def get_spent_and_income_by_month(transactions, ignore_donuts=False, ignore_cc_payments=False):
 	spent_and_income_by_month = {}
 	for t in transactions:
 		amount = t['amount']
@@ -54,8 +54,8 @@ def format_financial_stats(spent_and_income_by_month):
 
 	printable_stats = collections.OrderedDict(sorted(spent_and_income_by_month.items()))
 	for month in printable_stats:
-		printable_stats[month] = {'spent': "$%.2f" % Decimal(printable_stats[month]['spent']*-1).quantize(Decimal('.01')),
-								  'income': "$%.2f" % Decimal(printable_stats[month]['income']).quantize(Decimal('.01'))}
+		printable_stats[month] = {'spent': "$%.2f" % Decimal(printable_stats[month]['spent']*-1/10000).quantize(Decimal('.01')),
+								  'income': "$%.2f" % Decimal(printable_stats[month]['income']/10000).quantize(Decimal('.01'))}
 
 	return ast.literal_eval(json.dumps(printable_stats))
 	
@@ -65,16 +65,17 @@ if __name__ == "__main__":
 	parser = argparse.ArgumentParser()
 	parser.add_argument('--ignore_donuts', dest='ignore_donuts', action='store_true')
 	parser.set_defaults(ignore_donuts=False)
+	parser.add_argument('--ignore_cc_payments', dest='ignore_cc_payments', action='store_true')
+	parser.set_defaults(ignore_cc_payments=False)
 	args = parser.parse_args()
-
-	print args.ignore_donuts
 
 	# load a user's transactions
 	response = api_call('/api/v2/core/get-all-transactions', {})
 
 	# determine how much money the user spends and makes each month
 	spent_and_income_by_month = get_spent_and_income_by_month(transactions=response['transactions'],
-															  ignore_donuts=args.ignore_donuts)
+															  ignore_donuts=args.ignore_donuts,
+															  ignore_cc_payments=args.ignore_cc_payments)
 
 	# determine how much money the user spends and makes on average
 	spent_and_income_by_month['average'] = get_average_spent_and_income(spent_and_income_by_month)

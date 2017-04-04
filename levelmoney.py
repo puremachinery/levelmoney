@@ -21,9 +21,7 @@ def api_call(endpoint, content):
     content['args'].setdefault('token', TOKEN)
     return requests.post(URL + endpoint,
                          data=json.dumps(content),
-                         headers={
-                         		  'Content-Type': 'application/json',
-                                  'Accept': 'application/json'}
+                         headers={'Content-Type': 'application/json', 'Accept': 'application/json'}
                          ).json()
 
 
@@ -34,14 +32,24 @@ if __name__ == "__main__":
 	print transactions[0]['is-pending']
 
 	# determine how much money the user spends and makes each month
-	pending_count = sum(1 for trans in transactions if trans['is-pending'] == True)
-	print 'pending_count:' + str(pending_count)
-	print len(transactions)
+	spent_and_income_by_month = {}
+	for t in transactions:
+		amount = t['amount']
+		amount_type = 'income' if amount > 0 else 'spent'
+		month = t['transaction-time'][:7]  # e.g. '2014-10-24T07:20:00.000Z'
+		
+		if month in spent_and_income_by_month:
+			spent_and_income_by_month[month][amount_type] += amount
+		else:
+			spent_and_income_by_month[month] = {'spent': 0, 'income': 0}
+			spent_and_income_by_month[month][amount_type] = amount
 
 	# determine how much money the user spends and makes on average
+	average_spent = sum(row['spent'] for row in spent_and_income_by_month.values()) / len(spent_and_income_by_month)
+	average_income = sum(row['income'] for row in spent_and_income_by_month.values()) / len(spent_and_income_by_month)
 
-	# pprint(res)
-	# print res['transactions'][0]['merchant']
+
+
 	
 
 # [{"amount":-34300,"is-pending":false,"aggregation-time":1412686740000,
